@@ -1,5 +1,3 @@
-// lib/features/user_auth/presentation/pages/Tasks.dart
-
 import 'dart:async';
 import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -61,15 +59,35 @@ class FrostedGlassBox extends StatelessWidget {
 
 class TasksPage extends StatefulWidget {
   final String grade;
+  final Color color;
 
-  TasksPage({required this.grade});
+
+
+  TasksPage({required this.grade, required this.color});
 
   @override
   _TasksPageState createState() => _TasksPageState();
 }
 
+Color getColorForGrade(String grade) {
+  switch (grade) {
+    case '9th Grade':
+      return Colors.red[200]!; // For grade A
+    case '12th Grade':
+      return Colors.orange[200]!;  // For grade B
+    case '11th Grade':
+      return Colors.green[200]!; // For grade C
+    case '10th Grade':
+      return Colors.blue[200]!;    // For grade D
+    default:
+      return Colors.red;   // Default color for unknown grades
+  // Default color for unknown grades
+  }}
+
+
 class _TasksPageState extends State<TasksPage> {
   late List<Task> tasks = [];
+
 
   @override
   void initState() {
@@ -93,7 +111,6 @@ class _TasksPageState extends State<TasksPage> {
 
     setState(() {
       tasks = querySnapshotTasks.docs.map((doc) {
-        // Find the corresponding mark from querySnapshotUsers
         var userTask;
         querySnapshotUsers.docs.forEach((userTaskDoc) {
           if (userTaskDoc.id == doc.id) {
@@ -113,17 +130,27 @@ class _TasksPageState extends State<TasksPage> {
             print('Task added to user\'s tasks successfully');
           }).catchError((error) {
             print('Failed to add task to user\'s tasks: $error');
-            // Handle the error as needed
           });
         }
+        Color newcolor = getColorForGrade(widget.grade);
+        String colorHex = newcolor.value.toRadixString(16);
+        // Color taskColor = Color(int.parse(colorHex, radix: 16)); // Convert it to Color
+        // Remove '#' and convert to Color
+        if (colorHex.startsWith('#')) {
+          colorHex = colorHex.substring(1); // Remove '#'
+        }
+        Color taskColor = Color(int.parse('FF$colorHex', radix: 16)); // Convert to Color with full opacity
 
+        print("Revised Fetched color: ${taskColor}");
         return Task(
           id: doc.id,
           title: doc['title'],
           description: doc['description'],
           mark: userTask != null ? userTask['mark'] : false,
           pageType: PageTypeHelper.fromStringValue(doc['page_type']),
-          rank: doc['rank'], // Use null-aware operator to handle null value
+          rank: doc['rank'],
+          color: taskColor,
+           // Add the color to the Task model
         );
       }).toList();
 
@@ -166,6 +193,16 @@ class _TasksPageState extends State<TasksPage> {
     int completedTasks = tasks.where((task) => task.mark).length;
     int totalTasks = tasks.length;
     double progressPercent = (completedTasks/totalTasks)*100;
+    Color newcolor = getColorForGrade(widget.grade);
+
+    String colorHex = newcolor.value.toRadixString(16);
+    // Color taskColor = Color(int.parse(colorHex, radix: 16)); // Convert it to Color
+    // Remove '#' and convert to Color
+    if (colorHex.startsWith('#')) {
+      colorHex = colorHex.substring(1); // Remove '#'
+    }
+    Color taskColor = Color(int.parse('FF$colorHex', radix: 16)); // Convert to Color with full opacity
+
     return Scaffold(
       appBar: CommonHeader.Header(dynamicText: "Tasks for ${widget.grade}"),
       body: Stack(
@@ -226,6 +263,7 @@ class _TasksPageState extends State<TasksPage> {
                     theChild: TaskList(
                       tasks: tasks,
                       grade: widget.grade,
+                      color: taskColor,
                       updateTaskMark: updateTaskMark,
                     ),
                   ),
@@ -242,10 +280,13 @@ class _TasksPageState extends State<TasksPage> {
 class TaskList extends StatelessWidget {
   final List<Task> tasks;
   final String grade;
+  final Color color;
+
   final Function(Task, bool) updateTaskMark;
 
   TaskList({
     required this.tasks,
+    required this.color,
     required this.grade,
     required this.updateTaskMark,
   });
@@ -258,6 +299,7 @@ class TaskList extends StatelessWidget {
         return TaskCard(
           task: tasks[index],
           grade: grade,
+          color: color,
           updateTaskMark: updateTaskMark,
         );
       },
@@ -280,17 +322,19 @@ Widget getPageWidget(Task task) {
   // Add cases for other page types if needed
     default:
       return DocumentUploadPage(task: task);
-      //return MemoPage(task: task); // Return a default page or show an error message if the page type is not recognized
+  //return MemoPage(task: task); // Return a default page or show an error message if the page type is not recognized
   }
 }
 class TaskCard extends StatefulWidget {
   final Task task;
   final String grade;
+  final Color color;  // Color for the task card
   final Function(Task, bool) updateTaskMark;
 
   TaskCard({
     required this.task,
     required this.grade,
+    required this.color,  // Get the color passed from TasksPage
     required this.updateTaskMark,
   });
 
@@ -341,9 +385,13 @@ class _TaskCardState extends State<TaskCard> with SingleTickerProviderStateMixin
     super.dispose();
   }
 
+
   @override
   Widget build(BuildContext context) {
+
+
     return Card(
+      color: widget.color,  // Set the card's background color
       child: Dismissible(
         key: Key(widget.task.id),
         direction: DismissDirection.endToStart,
@@ -391,7 +439,6 @@ class _TaskCardState extends State<TaskCard> with SingleTickerProviderStateMixin
                         style: TextStyle(
                           color: Colors.indigo,
                           fontSize: 15,
-                          fontWeight: FontWeight.bold, // Made font weight bold
                           fontFamily: 'MadimiOne',
                         ),
                       ),
@@ -401,7 +448,6 @@ class _TaskCardState extends State<TaskCard> with SingleTickerProviderStateMixin
                     value: widget.task.mark,
                     onChanged: (newValue) {
                       if (newValue != null) {
-                        // Update Firestore document using the task's Id
                         FirebaseFirestore.instance
                             .collection('Checklist')
                             .doc(widget.grade)
@@ -412,9 +458,7 @@ class _TaskCardState extends State<TaskCard> with SingleTickerProviderStateMixin
                           print('Document updated successfully');
                         }).catchError((error) {
                           print('Failed to update document: $error');
-                          // Handle the error as needed
                         });
-                        // Call the function to update the task mark
                         widget.updateTaskMark(widget.task, newValue);
                       }
                     },
@@ -429,7 +473,6 @@ class _TaskCardState extends State<TaskCard> with SingleTickerProviderStateMixin
                     style: TextStyle(
                       color: Colors.indigo,
                       fontSize: 15,
-                      fontWeight: FontWeight.bold,
                       fontFamily: 'MadimiOne',
                     ),
                   ),
@@ -441,34 +484,11 @@ class _TaskCardState extends State<TaskCard> with SingleTickerProviderStateMixin
                         style: TextStyle(
                           color: Colors.indigo,
                           fontSize: 15,
-                          fontWeight: FontWeight.bold, // Made font weight bold
                           fontFamily: 'MadimiOne',
                         ),
                       ),
                     ),
                   ],
-                  trailing: Checkbox(
-                    value: widget.task.mark,
-                    onChanged: (newValue) {
-                      if (newValue != null) {
-                        // Update Firestore document using the task's Id
-                        FirebaseFirestore.instance
-                            .collection('Checklist')
-                            .doc(widget.grade)
-                            .collection('tasks')
-                            .doc(widget.task.id)
-                            .update({'mark': newValue})
-                            .then((value) {
-                          print('Document updated successfully');
-                        }).catchError((error) {
-                          print('Failed to update document: $error');
-                          // Handle the error as needed
-                        });
-                        // Call the function to update the task mark
-                        widget.updateTaskMark(widget.task, newValue);
-                      }
-                    },
-                  ),
                 ),
               ),
           ],
@@ -478,11 +498,13 @@ class _TaskCardState extends State<TaskCard> with SingleTickerProviderStateMixin
   }
 }
 
+
 class TaskListPage extends StatelessWidget {
   final List<Task> tasks;
   final String grade;
+  final Color color;
 
-  TaskListPage({required this.tasks, required this.grade});
+  TaskListPage({required this.tasks, required this.grade, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -509,6 +531,7 @@ class TaskListPage extends StatelessWidget {
                 return TaskCard(
                   task: tasks[index],
                   grade: grade,
+                  color: color,
                   updateTaskMark: (task, newValue) {
                     // Your updateTaskMark implementation here
                   },
@@ -526,9 +549,10 @@ class Task {
   final String id;
   final String title;
   final String description;
-  final int rank;
+  late final bool mark;
   final PageType pageType;
-  bool mark;
+  final int rank;
+  final Color color; // Add color field
 
   Task({
     required this.id,
@@ -537,5 +561,6 @@ class Task {
     required this.mark,
     required this.pageType,
     required this.rank,
+    required this.color, // Include color in constructor
   });
 }

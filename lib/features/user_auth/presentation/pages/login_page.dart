@@ -254,6 +254,8 @@ class _LoginPageState extends State<LoginPage> {
           .collection('users')
           .doc(user.uid)
           .get();
+      // Print a message indicating that the document was fetched
+      print('Fetched document for user with UID: ${user.uid}');
 
       if (snapshot.exists && snapshot.data() != null && snapshot.data()!['grade'] != "") {
         // If the user's grade is present, navigate directly to the corresponding grade
@@ -271,7 +273,7 @@ class _LoginPageState extends State<LoginPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => TasksPage(grade: grade),
+        builder: (context) => TasksPage(grade: grade, color: Colors.blue),
       ),
     );
   }

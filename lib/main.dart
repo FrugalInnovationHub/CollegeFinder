@@ -56,7 +56,7 @@ class MyApp extends StatelessWidget {
           // Extract grade from the route arguments
             final String grade = settings.arguments as String;
             return MaterialPageRoute(
-              builder: (context) => TasksPage(grade: grade),
+              builder: (context) => TasksPage(grade: grade, color: Colors.blue),
             );
           case '/choosegrade':
             return MaterialPageRoute(builder: (context) => StudentChooseGrade());
